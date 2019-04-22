@@ -58,7 +58,7 @@ class Webvpn < Formula
   end
 
   def install
-    Dir.chdir('tools/ec2')
+    Dir.chdir('tools/webvpn')
     xy = Language::Python.major_minor_version "python3"
     ENV.prepend_create_path "PYTHONPATH", libexec/"vendor/lib/python#{xy}/site-packages"
     resources.each do |r|
