@@ -1,0 +1,13 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[dev-packages]
+
+[packages]
+webvpn = {editable = true,path = "./tools/webvpn"}
+homebrew-pypi-poet = "*"
+
+[requires]
+python_version = "3.7"
