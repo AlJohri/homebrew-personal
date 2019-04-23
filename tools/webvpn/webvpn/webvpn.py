@@ -97,10 +97,8 @@ def okta_saml(s, saml_req_url, domain, username, password, token_secret):
 def complete_saml(s, gateway, saml_resp_url, saml_resp_data, xml_payload, vpn_group):
     r1 = check(s.post(saml_resp_url, data=saml_resp_data))
     action, payload = extract_form(r1, '#samlform')
-    import pdb; pdb.set_trace()
-    r2 = check(s.post(action, data=payload))
-    r3 = s.get(f'https://{gateway}/+CSCOE+/logon.html?a0=0&a1=&a2=&a3=1', allow_redirects=True)
-    assert 'Authentication successful' in r3.text
+    check(s.post(action, data=payload))
+    assert 'Authentication successful' in s.get(f'https://{gateway}/+CSCOE+/logon.html?a0=0&a1=&a2=&a3=1').text
     payload_dict = {
         'config-auth': {
             '@client': 'vpn',
@@ -145,7 +143,7 @@ def main():
             r1 = check(s.post(saml_resp_url, data=saml_resp_data))
             action, payload = extract_form(r1, '#DSIDConfirmForm')
             del payload['btnCancel']
-            r2 = check(s.post(action, data=payload))
+            check(s.post(action, data=payload))
             cookies = {
                 'DSID': s.cookies['DSID'],
                 'DSFirst': s.cookies['DSFirstAccess'],
