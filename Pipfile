@@ -7,7 +7,7 @@ verify_ssl = true
 pylint = "*"
 
 [packages]
-webvpn = {editable = true,path = "./tools/webvpn"}
+openconnect-okta-helper = {editable = true,path = "./tools/openconnect-okta-helper"}
 homebrew-pypi-poet = "*"
 
 [requires]

@@ -3,12 +3,12 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='webvpn',
+    name='openconnect_okta_helper',
     install_requires=['requests', 'lxml', 'cssselect', 'xmltodict', 'onetimepass'],
     packages=find_packages(),
     entry_points={
         'console_scripts': [
-            'webvpn=webvpn.webvpn:main'
+            'openconnect-okta-helper=openconnect_okta_helper:main'
         ]
     },
 )

@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "5a7c70e7d991135504352f87e298b7a65edb2d35a54028480ca472345a398242"
+            "sha256": "b946adc6381783bbf7856adf823bd5ca47f6560a4dfd6721302b19c4ca2cfc46"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -129,6 +129,10 @@
             ],
             "version": "==1.0.1"
         },
+        "openconnect-okta-helper": {
+            "editable": true,
+            "path": "./tools/openconnect-okta-helper"
+        },
         "requests": {
             "hashes": [
                 "sha256:502a824f31acdacb3a35b6690b5fbf0bc41d63a24a45c4004352b0242707598e",
@@ -149,10 +153,6 @@
                 "sha256:9a247273df709c4fedb38c711e44292304f73f39ab01beda9f6b9fc375669ac3"
             ],
             "version": "==1.24.2"
-        },
-        "webvpn": {
-            "editable": true,
-            "path": "./tools/webvpn"
         },
         "xmltodict": {
             "hashes": [

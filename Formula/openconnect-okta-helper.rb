@@ -1,4 +1,4 @@
-class Webvpn < Formula
+class OpenconnectOktaHelper < Formula
   desc "webvpn"
   url "git@github.com:AlJohri/homebrew-personal.git", :using => GitDownloadStrategy
   version "0.0.1"
@@ -58,7 +58,7 @@ class Webvpn < Formula
   end
 
   def install
-    Dir.chdir('tools/webvpn')
+    Dir.chdir('tools/openconnect-okta-helper')
     xy = Language::Python.major_minor_version "python3"
     ENV.prepend_create_path "PYTHONPATH", libexec/"vendor/lib/python#{xy}/site-packages"
     resources.each do |r|
