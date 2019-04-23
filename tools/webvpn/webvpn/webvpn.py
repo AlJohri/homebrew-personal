@@ -140,10 +140,11 @@ def main():
         with requests.Session() as s:
             saml_req_url = s.get(f'https://{args.gateway}').url
             saml_resp_url, saml_resp_data = okta_saml(s, saml_req_url, args.okta_domain, args.username, args.password, args.token_secret)
-            r1 = check(s.post(saml_resp_url, data=saml_resp_data))
-            action, payload = extract_form(r1, '#DSIDConfirmForm')
-            del payload['btnCancel']
-            check(s.post(action, data=payload))
+            r = check(s.post(saml_resp_url, data=saml_resp_data))
+            if 'DSIDConfirmForm' in r.text:
+                action, payload = extract_form(r, '#DSIDConfirmForm')
+                del payload['btnCancel']
+                check(s.post(action, data=payload))
             cookies = {
                 'DSID': s.cookies['DSID'],
                 'DSFirst': s.cookies['DSFirstAccess'],
