@@ -7,6 +7,7 @@ Forked from: https://github.com/zdave/openconnect-gp-okta/blob/master/openconnec
 import sys
 import json
 import signal
+import getpass
 import textwrap
 import argparse
 import subprocess
@@ -63,31 +64,62 @@ def prelogin(s, gateway, vpn_group):
     saml_req_url = r2.headers['Location']
     return saml_req_url, data
 
-def okta_auth(s, domain, username, password, token_secret=None):
-    r = check(s.post(f'https://{domain}/api/v1/authn', json={'username': username, 'password': password})).json()
-    if r['status'] == 'MFA_REQUIRED':
-        for factor in r['_embedded']['factors']:
-            if factor['factorType'] == 'push':
-                url = factor['_links']['verify']['href']
-                while True:
-                    r = check(s.post(url, json={'stateToken': r['stateToken']})).json()
-                    if r['status'] != 'MFA_CHALLENGE':
-                        break
-                    assert r['factorResult'] == 'WAITING'
-                break
-            elif factor['factorType'] == 'token:software:totp':
-                url = factor['_links']['verify']['href']
-                otp_value = onetimepass.get_totp(token_secret)
-                r = check(s.post(url, json={'stateToken': r['stateToken'], 'answer': otp_value})).json()
-                break
-        else:
-            assert False
-    assert r['status'] == 'SUCCESS'
-    return r['sessionToken']
+def okta_auth(s, domain, username, password, totp_secret, okta_mfa_default_factor_type):
+    """
+    Factors https://developer.okta.com/docs/api/resources/factor_admin/#factor-model
+    """
 
-def okta_saml(s, saml_req_url, domain, username, password, token_secret):
+    r = check(s.post(f'https://{domain}/api/v1/authn', json={'username': username, 'password': password})).json()
+
+    if r['status'] == 'MFA_ENROLL':
+        print('Please enroll in multi-factor authentication before using this tool')
+        exit(1)
+
+    if r['status'] == 'MFA_REQUIRED':
+        factors = r['_embedded']['factors']
+
+        # if only one factor enabled, use it
+        if len(factors) == 1:
+            factor = factors[0]
+        else:
+            # if multiple, use the "okta_mfa_default_factor_type"
+            try:
+                factor = [x for x in factors in x['factorType'] == okta_mfa_default_factor_type][0]
+            except IndexError:
+                factor_types = set([x['factorType'] for x in okta_mfa_default_factor_type])
+                print(f"You have {len(factor_types)} factors enabled in Okta: {factor_types}.\n"
+                      f"Please set the --okta-mfa-default-factor-type flag. "
+                      f"Currently set or defaulted to: {okta_mfa_default_factor_type}")
+                exit(1)
+
+        if factor['factorType'] == 'push':
+            url = factor['_links']['verify']['href']
+            while True:
+                r = check(s.post(url, json={'stateToken': r['stateToken']})).json()
+                print('Push notification sent; waiting for your response', file=sys.stderr)
+                if r['status'] != 'MFA_CHALLENGE':
+                    break
+                assert r['factorResult'] == 'WAITING'
+                time.sleep(3)
+            assert r['status'] == 'SUCCESS'
+            return r['sessionToken']
+        elif factor['factorType'] == 'token:software:totp':
+            url = factor['_links']['verify']['href']
+            if totp_secret:
+                otp_value = onetimepass.get_totp(totp_secret)
+            else:
+                print('Enter your multifactor authentication token: ', file=sys.stderr, end='')
+                otp_value = input()
+            r = check(s.post(url, json={'stateToken': r['stateToken'], 'answer': otp_value})).json()
+            assert r['status'] == 'SUCCESS'
+            return r['sessionToken']
+        elif factor['factorType'] in ['sms', 'question', 'call', 'token']:
+            factor_type = factor['factorType']
+            raise NotImplementedError(' factor not implemented')
+
+def okta_saml(s, saml_req_url, domain, username, password, totp_secret, okta_default_mfa_factor_type):
     check(s.get(saml_req_url)) # Just to set DT cookie
-    token = okta_auth(s, domain, username, password, token_secret)
+    token = okta_auth(s, domain, username, password, totp_secret, okta_default_mfa_factor_type)
     params = {'token': token, 'redirectUrl': saml_req_url}
     r = check(s.get(f'https://{domain}/login/sessionCookieRedirect', params=params))
     saml_resp_url, saml_resp_data = extract_form(r, '#appForm')
@@ -123,23 +155,30 @@ def main():
     parser.add_argument('--protocol', choices=['anyconnect', 'nc'], required=True)
     parser.add_argument('--gateway', required=True)
     parser.add_argument('--okta-domain', required=True)
-    parser.add_argument('--okta-group', required=False)
     parser.add_argument('--username', required=True)
-    parser.add_argument('--password', required=True)
-    parser.add_argument('--token-secret', required=True)
+    parser.add_argument('--password')
+    parser.add_argument('--totp-secret')
+    parser.add_argument('--okta-group')
+    parser.add_argument('--okta-mfa-default-factor-type', default='token:software:totp',
+        choices=('token:software:totp', 'push', 'sms', 'token', 'question', 'call'),
+        help='default okta mfa factor type to use if multiple are found')
+    parser.add_argument('--verbose', action='store_true', default=False)
 
     args = parser.parse_args()
+
+    if not args.password:
+        args.password = getpass.getpass('Okta Password: ')
 
     if args.protocol == 'anyconnect': # Cisco AnyConnect SSL VPN, as well as ocserv
         with requests.Session() as s:
             saml_req_url, xml_payload = prelogin(s, args.gateway, args.okta_group)
-            saml_resp_url, saml_resp_data = okta_saml(s, saml_req_url, args.okta_domain, args.username, args.password, args.token_secret)
+            saml_resp_url, saml_resp_data = okta_saml(s, saml_req_url, args.okta_domain, args.username, args.password, args.totp_secret, args.okta_mfa_default_factor_type)
             cookie = complete_saml(s, args.gateway, saml_resp_url, saml_resp_data, xml_payload, args.okta_group)
             print(cookie)
     elif args.protocol == 'nc': # Juniper Network Connect / Pulse Secure SSL VPN
         with requests.Session() as s:
-            saml_req_url = s.get(f'https://{args.gateway}').url
-            saml_resp_url, saml_resp_data = okta_saml(s, saml_req_url, args.okta_domain, args.username, args.password, args.token_secret)
+            saml_req_url = s.get(f'https://{args.gateway}', timeout=2).url
+            saml_resp_url, saml_resp_data = okta_saml(s, saml_req_url, args.okta_domain, args.username, args.password, args.totp_secret, args.okta_mfa_default_factor_type)
             r = check(s.post(saml_resp_url, data=saml_resp_data))
             if 'DSIDConfirmForm' in r.text:
                 action, payload = extract_form(r, '#DSIDConfirmForm')
