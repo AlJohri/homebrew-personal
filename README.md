@@ -2,14 +2,14 @@
 
 Personal CLI tools.
 
-## openconnect-okta-helper
+### openconnect-okta-helper
 
 ```
 brew install openconnect AlJohri/personal/openconnect-okta-helper
 ```
 
 WaPo Main VPN
-```
+```bash
 sudo openconnect \
 	--background \
 	--pid-file="$HOME/.mainvpn.pid" \
@@ -26,7 +26,7 @@ sudo openconnect \
 ```
 
 WaPo Arc VPN
-```
+```bash
 sudo openconnect \
 	--background \
     --protocol=anyconnect \
@@ -40,4 +40,20 @@ sudo openconnect \
     	--username johria)" \
     -vv \
     ra.network.aws.arc.pub &> "$HOME/.arcvpn.log"
+```
+
+Check Running VPN
+```bash
+ps aux | grep openconnect
+tail -f "$HOME/.mainvpn.log"
+```
+
+Stop VPN
+```bash
+sudo pkill -2 -F "$HOME/.mainvpn.pid"
+```
+
+Prevent Password Prompt for `sudo` when using VPN
+```bash
+sudo sh -c 'echo "%admin ALL=(ALL) NOPASSWD: /usr/local/bin/openconnect, /bin/kill" > /etc/sudoers.d/openconnect'
 ```
