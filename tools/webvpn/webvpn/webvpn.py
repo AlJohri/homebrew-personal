@@ -4,11 +4,13 @@
 Forked from: https://github.com/zdave/openconnect-gp-okta/blob/master/openconnect-gp-okta
 """
 
+import sys
 import json
 import signal
 import textwrap
 import argparse
 import subprocess
+import urllib.parse
 
 import requests
 import lxml.html
@@ -19,17 +21,24 @@ def check(r):
     try:
         r.raise_for_status()
     except requests.exceptions.HTTPError as e:
-        print('ERROR', e)
-        print(r.headers)
-        print(r.status_code)
-        print(r.content)
+        print('ERROR', e, file=sys.stderr)
+        print(r.headers, file=sys.stderr)
+        print(r.status_code, file=sys.stderr)
+        print(r.text, file=sys.stderr)
         raise
     return r
 
-def extract_form(html, form_id):
-    doc = lxml.html.fromstring(html)
+def extract_form(response, form_id):
+    doc = lxml.html.fromstring(response.content)
     form = doc.cssselect(form_id)[0]
     action = form.get('action')
+    if action.startswith('http'):
+        pass
+    elif action.startswith('/'):
+        o = urllib.parse.urlparse(response.url)
+        action = f'{o.scheme}://{o.netloc}{action}'
+    else:
+        action = response.url.rsplit('/', 1)[0] + '/' + action
     inputs = {x.get('name'):x.get('value') for x in form.cssselect('input')}
     return action, inputs
 
@@ -81,14 +90,15 @@ def okta_saml(s, saml_req_url, domain, username, password, token_secret):
     token = okta_auth(s, domain, username, password, token_secret)
     params = {'token': token, 'redirectUrl': saml_req_url}
     r = check(s.get(f'https://{domain}/login/sessionCookieRedirect', params=params))
-    saml_resp_url, saml_resp_data = extract_form(r.content, '#appForm')
+    saml_resp_url, saml_resp_data = extract_form(r, '#appForm')
     assert 'SAMLResponse' in saml_resp_data
     return saml_resp_url, saml_resp_data
 
 def complete_saml(s, gateway, saml_resp_url, saml_resp_data, xml_payload, vpn_group):
     r1 = check(s.post(saml_resp_url, data=saml_resp_data))
-    action, payload = extract_form(r1.content, '#samlform')
-    r2 = check(s.post(f'https://{gateway}{action}', data=payload))
+    action, payload = extract_form(r1, '#samlform')
+    import pdb; pdb.set_trace()
+    r2 = check(s.post(action, data=payload))
     r3 = s.get(f'https://{gateway}/+CSCOE+/logon.html?a0=0&a1=&a2=&a3=1', allow_redirects=True)
     assert 'Authentication successful' in r3.text
     payload_dict = {
@@ -112,21 +122,37 @@ def complete_saml(s, gateway, saml_resp_url, saml_resp_data, xml_payload, vpn_gr
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument('--protocol', choices=['anyconnect', 'nc'], required=True)
     parser.add_argument('--gateway', required=True)
     parser.add_argument('--okta-domain', required=True)
-    parser.add_argument('--okta-group', required=True)
+    parser.add_argument('--okta-group', required=False)
     parser.add_argument('--username', required=True)
     parser.add_argument('--password', required=True)
     parser.add_argument('--token-secret', required=True)
 
     args = parser.parse_args()
 
-    with requests.Session() as s:
-        saml_req_url, xml_payload = prelogin(s, args.gateway, args.okta_group)
-        saml_resp_url, saml_resp_data = okta_saml(s, saml_req_url, args.okta_domain, args.username, args.password, args.token_secret)
-        webvpn = complete_saml(s, args.gateway, saml_resp_url, saml_resp_data, xml_payload, args.okta_group)
-
-    print(webvpn)
+    if args.protocol == 'anyconnect': # Cisco AnyConnect SSL VPN, as well as ocserv
+        with requests.Session() as s:
+            saml_req_url, xml_payload = prelogin(s, args.gateway, args.okta_group)
+            saml_resp_url, saml_resp_data = okta_saml(s, saml_req_url, args.okta_domain, args.username, args.password, args.token_secret)
+            cookie = complete_saml(s, args.gateway, saml_resp_url, saml_resp_data, xml_payload, args.okta_group)
+            print(cookie)
+    elif args.protocol == 'nc': # Juniper Network Connect / Pulse Secure SSL VPN
+        with requests.Session() as s:
+            saml_req_url = s.get(f'https://{args.gateway}').url
+            saml_resp_url, saml_resp_data = okta_saml(s, saml_req_url, args.okta_domain, args.username, args.password, args.token_secret)
+            r1 = check(s.post(saml_resp_url, data=saml_resp_data))
+            action, payload = extract_form(r1, '#DSIDConfirmForm')
+            del payload['btnCancel']
+            r2 = check(s.post(action, data=payload))
+            cookies = {
+                'DSID': s.cookies['DSID'],
+                'DSFirst': s.cookies['DSFirstAccess'],
+                'DSLast': s.cookies['DSLastAccess'],
+                'DSSignInUrl': s.cookies['DSSignInURL']
+            }
+            print('; '.join([f'{k}={v}' for k, v in cookies.items()]))
 
 if __name__ == "__main__":
     main()
