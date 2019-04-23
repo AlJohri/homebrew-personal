@@ -5,7 +5,7 @@ Personal CLI tools.
 ## openconnect-okta-helper
 
 ```
-brew install AlJohri/personal/openconnect-okta-helper
+brew install openconnect AlJohri/personal/openconnect-okta-helper
 ```
 
 WaPo Main VPN
