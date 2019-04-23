@@ -8,18 +8,20 @@ Personal CLI tools.
 brew install openconnect AlJohri/personal/openconnect-okta-helper
 ```
 
+Replace `<USERNAME>` with your Okta username. Run `openconnect-okta-helper --help` for more options.
+
 WaPo Main VPN
 ```bash
 sudo openconnect \
 	--background \
 	--pid-file="$HOME/.mainvpn.pid" \
     --protocol=nc \
-    --user=johria \
+    --user=<USERNAME> \
     --cookie="$(openconnect-okta-helper \
     	--protocol nc \
     	--gateway ra.washpost.com \
     	--okta-domain washpost.okta.com \
-    	--username johria)" \
+    	--username <USERNAME>)" \
     --authgroup=TWP-main \
     -vv \
     ra.washpost.com &> "$HOME/.mainvpn.log"
@@ -31,13 +33,13 @@ sudo openconnect \
 	--background \
     --protocol=anyconnect \
     --pid-file="$HOME/.arcvpn.pid" \
-    --user="$username" \
+    --user=<USERNAME> \
     --cookie="$(openconnect-okta-helper \
     	--protocol anyconnect \
     	--gateway ra.network.aws.arc.pub \
     	--okta-domain washpost.okta.com \
     	--okta-group ARC_OKTA_USERS \
-    	--username johria)" \
+    	--username <USERNAME>)" \
     -vv \
     ra.network.aws.arc.pub &> "$HOME/.arcvpn.log"
 ```
