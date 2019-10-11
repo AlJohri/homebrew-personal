@@ -1,6 +1,6 @@
 class OpenconnectOktaHelper < Formula
   desc "webvpn"
-  url "git@github.com:AlJohri/homebrew-personal.git", :using => GitDownloadStrategy
+  url "https://github.com/AlJohri/homebrew-personal.git", :using => GitDownloadStrategy
   version "0.0.1"
   depends_on "python"
 
