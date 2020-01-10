@@ -5,7 +5,7 @@ Personal CLI tools.
 ### openconnect-okta-helper
 
 ```
-brew install openconnect AlJohri/personal/openconnect-okta-helper
+brew install openconnect AlJohri/-/openconnect-okta-helper
 ```
 
 Replace `<USERNAME>` with your Okta username. Run `openconnect-okta-helper --help` for more options.
