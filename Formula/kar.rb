@@ -4,6 +4,7 @@ class Kar < Formula
   version "0.0.1"
 
   def install
-    bin.install "kar"
+    libexec.install "kar"
+    bin.install_symlink "#{libexec}/kar"
   end
 end
