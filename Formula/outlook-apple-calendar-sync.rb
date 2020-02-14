@@ -33,7 +33,7 @@ class OutlookAppleCalendarSync < Formula
       <key>StandardErrorPath</key>
       <string>#{var}/log/#{name}.log</string>
       <key>StartInterval</key>
-      <integer>600</integer>
+      <integer>60</integer>
     </dict>
     </plist>
   EOS
