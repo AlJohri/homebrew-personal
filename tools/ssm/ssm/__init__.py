@@ -51,11 +51,10 @@ def make_delete_cmd(subparsers, shared_parsers=[]):
     parser = subparsers.add_parser('delete', parents=shared_parsers, aliases=('rm',))
     parser.set_defaults(func=delete_cmd)
 
-def make_help_cmd(subparsers, shared_parsers=[]):
+def make_help_cmd(subparsers, shared_parsers=[], parent_parser=None):
 
     def help_cmd(args):
-        import pdb; pdb.set_trace()
-        parser.print_help()
+        parent_parser.print_help()
 
     parser = subparsers.add_parser('help', parents=shared_parsers)
     parser.set_defaults(func=help_cmd)
@@ -86,7 +85,7 @@ def main():
     make_get_cmd(subparsers, [shared_parser])
     make_list_cmd(subparsers, [shared_parser])
     make_put_cmd(subparsers, [shared_parser])
-    make_help_cmd(subparsers, [shared_parser])
+    make_help_cmd(subparsers, [shared_parser], parent_parser=parser)
     args = parser.parse_args()
 
     if args.verbose:
